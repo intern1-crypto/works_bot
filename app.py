@@ -1,4 +1,4 @@
-import os
+import os, traceback
 import requests
 from flask import Flask, request
 
@@ -13,10 +13,11 @@ SEND_URL = "https://www.worksapis.com/v1.0/bots/{bot_no}/users/{user_id}/message
 
 @app.route("/", methods=["GET"])
 def health():
+    # 起動確認ログ（バージョン印字）
+    print("boot: app is running, BOT_NO=", BOT_NO, "CLIENT_ID set:", bool(CLIENT_ID))
     return "ok", 200
 
 def get_access_token():
-    """Access Token を取得"""
     resp = requests.post(
         TOKEN_URL,
         data={
@@ -27,11 +28,12 @@ def get_access_token():
         },
         timeout=10,
     )
+    print("token resp:", resp.status_code)
     resp.raise_for_status()
-    return resp.json()["access_token"]
+    return resp.json().get("access_token")
 
 def send_message(user_id: str, text: str = "お疲れ様"):
-    """ユーザーにメッセージを送信"""
+    print("send_message: start ->", user_id)
     token = get_access_token()
     url = SEND_URL.format(bot_no=BOT_NO, user_id=user_id)
     headers = {
@@ -40,7 +42,7 @@ def send_message(user_id: str, text: str = "お疲れ様"):
     }
     body = {"content": {"type": "text", "text": text}}
     r = requests.post(url, headers=headers, json=body, timeout=10)
-    print("send_message:", r.status_code, r.text)
+    print("send_message: done", r.status_code, r.text[:200])
 
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
@@ -50,15 +52,12 @@ def webhook():
     data = request.get_json(silent=True) or {}
     print("Incoming webhook:", data)
 
-    # ユーザーIDを取り出して返信
     user_id = (data.get("source") or {}).get("userId")
     if user_id:
         try:
             send_message(user_id, "お疲れ様")
         except Exception as e:
             print("send_message error:", e)
+            traceback.print_exc()
 
     return "ok", 200
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
