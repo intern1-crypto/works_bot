@@ -28,7 +28,7 @@ def get_access_token():
         },
         timeout=10,
     )
-    print("token resp:", resp.status_code)
+    print("token resp:", resp.status_code, resp.text[:300])  # ★ 追加（本文を見る）
     resp.raise_for_status()
     return resp.json().get("access_token")
 
